@@ -1,7 +1,1 @@
-fastapi
-uvicorn
-pandas
-scikit-learn
-numpy
-python-multipart
-matplotlib
+python-3.11.9
