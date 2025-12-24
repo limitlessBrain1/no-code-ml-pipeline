@@ -1,5 +1,5 @@
 // ml-ui/src/App.jsx
-import React, { useRef, useState, useEffect } from "react";
+import React, {useState, useEffect } from "react";
 import ReactFlow, {
   Background,
   Controls,
@@ -9,39 +9,39 @@ import ReactFlow, {
   useNodesState,
   useEdgesState,
 } from "reactflow";
-import "reactflow/dist/style.css";
-import "./normal.css";
+//import "reactflow/dist/style.css";
+//import "./normal.css";
 import { FiUpload, FiSettings, FiDivide, FiCpu, FiBarChart } from "react-icons/fi";
 
 const API_BASE = "http://127.0.0.1:8000";
 
-/* CSV parser (fallback) */
-function csvToArray(str, delimiter = ",") {
-  const lines = str.split(/\r?\n/).filter(Boolean);
-  if (!lines.length) return { headers: [], rows: [] };
-  const headers = lines[0].split(delimiter).map((h) => h.trim());
-  const rows = lines.slice(1).map((line) => {
-    const cols = line.split(delimiter).map((c) => c.trim());
-    const obj = {};
-    headers.forEach((h, i) => (obj[h] = cols[i] ?? ""));
-    return obj;
-  });
-  return { headers, rows };
-}
+
 
 /* Upload Node used in ReactFlow (not required to be clickable) */
-const UploadNode = ({ data }) => {
-  // node-level file input (works on some browsers)
-  const handleNodeUpload = (e) => {
-    const f = e.target.files?.[0];
-    if (!f) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      const parsed = csvToArray(ev.target.result);
-      data.onUpload && data.onUpload(parsed);
-    };
-    reader.readAsText(f);
-  };
+const UploadNode = ({data}) => {
+  
+  const handleNodeUpload = async (e) => {
+  const f = e.target.files?.[0];
+  if (!f) return;
+
+  // 1️⃣ Upload to backend
+  const fd = new FormData();
+  fd.append("file", f);
+
+  const res = await fetch("http://127.0.0.1:8000/upload", {
+    method: "POST",
+    body: fd,
+  });
+
+  const response= await res.json();
+  if (!res.ok) {
+    alert(response.error || "Upload failed");
+    return;
+  }
+  data?.setDatasetId?.(response.dataset_id);
+  // 2️⃣ Update frontend state
+  response.preview && data?.onUpload?.(response.preview);
+};
 
   return (
     <div className="node-box" style={{ pointerEvents: "auto" }}>
@@ -77,41 +77,8 @@ const initialEdges = [
   { id: "e3-4", source: "3", target: "4" },
   { id: "e4-5", source: "4", target: "5" },
 ];
-/*
- // ✅ Declare OUTSIDE App()
-const ColumnSelect = ({ allColumns, targetCol, setTargetCol }) => {
-  return (
-    <select
-      value={targetCol}
-      onChange={(e) => setTargetCol(e.target.value)}
-    >
-      <option value="">-- select target column --</option>
-      {allColumns.map((c) => (
-        <option key={c} value={c}>
-          {c}
-        </option>
-      ))}
-    </select>
-  );
-};
-*/
-/*
-const ColumnSelect = () => {
-  if (!allColumns.length) {
-    return <select disabled><option>No columns</option></select>;
-  }
 
-  return (
-    <select value={targetCol} onChange={(e) => setTargetCol(e.target.value)}>
-      <option value="">-- select target column --</option>
-      {allColumns.map((c) => (
-        <option key={c} value={c}>{c}</option>
-      ))}
-    </select>
-  );
-};
-*/
-// ✅ Declare OUTSIDE App()
+
 const ColumnSelect = ({ allColumns, targetCol, setTargetCol }) => {
   if (!allColumns || allColumns.length === 0) {
     return (
@@ -140,7 +107,7 @@ const ColumnSelect = ({ allColumns, targetCol, setTargetCol }) => {
 
 
 export default function App() {
-  const fileInputRef = useRef(null);
+
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
   const [nodeTypes] = useState({ uploadNode: UploadNode, simpleNode: SimpleNode });
@@ -160,6 +127,7 @@ export default function App() {
   // model selection
   const [modelPanelOpen, setModelPanelOpen] = useState(false);
   const [selectedModel, setSelectedModel] = useState("logistic");
+
 
   // training results
   const [accuracy, setAccuracy] = useState(null);
@@ -187,69 +155,16 @@ export default function App() {
     );
   }, [setNodes]);
 
-  // helper: call backend upload endpoint
-  async function uploadToBackend(file) {
-    if (!file) return;
-    const fd = new FormData();
-    fd.append("file", file);
-    setStatus("Uploading...");
-    try {
-      const res = await fetch(`${API_BASE}/upload`, { method: "POST", body: fd });
-      const data = await res.json();
-      if (!res.ok) {
-        setStatus(data.error || "Upload failed");
-        return;
-      }
-      setDatasetPreview(data.preview);
-      setAllColumns(data.preview.headers);
-      setStatus("Uploaded to backend");
-    } catch (err) {
-      console.error(err);
-      setStatus("Upload error");
-    }
-  }
+  
 
-  // hidden sidebar input change
-  const handleSidebarFile = async (e) => {
-    const f = e.target.files?.[0];
-    if (!f) return;
-    // call backend
-    await uploadToBackend(f);
-  };
 
-  // Preprocess call
-  /*
-  const callPreprocess = async () => {
-    if (!targetCol) { setStatus("Please select target column first"); return; }
-    setStatus("Preprocessing...");
-    try {
-      const fd = new FormData();
-      fd.append("standardize", standardize ? "true" : "false");
-      fd.append("normalize", normalize ? "true" : "false");
-      fd.append("target_col", targetCol);
-      const res = await fetch(`${API_BASE}/preprocess`, { method: "POST", body: fd });
-      const data = await res.json();
-      if (!res.ok) {
-        setStatus(data.error || "Preprocess failed");
-        return;
-      }
-      setStatus("Preprocessing done");
-    } catch (err) {
-      console.error(err);
-      setStatus("Preprocess error");
-    }
-  };
-  */
- const callPreprocess = async () => {
+ 
+ 
+ 
+  
+   const callPreprocess = async () => {
   if (!targetCol) {
     setStatus("Please select target column first");
-    return;
-  }
-
-  const method = standardize ? "standard" : normalize ? "normalize" : "";
-
-  if (!method) {
-    setStatus("Select a preprocessing method");
     return;
   }
 
@@ -257,7 +172,10 @@ export default function App() {
 
   try {
     const fd = new FormData();
-    fd.append("method", method);
+
+    // ✅ SEND WHAT BACKEND EXPECTS
+    fd.append("standardize", standardize);
+    fd.append("normalize", normalize);
     fd.append("target_col", targetCol);
 
     const res = await fetch(`${API_BASE}/preprocess`, {
@@ -278,31 +196,6 @@ export default function App() {
     setStatus("Preprocess error");
   }
 };
-
-
-  // Split call
-  /*
-  const callSplit = async () => {
-    if (!targetCol) { setStatus("Please select target column first"); return; }
-    setStatus("Splitting dataset...");
-    try {
-      const fd = new FormData();
-      fd.append("test_size", testRatio);
-      fd.append("random_state", 42);
-      fd.append("target_col", targetCol);
-      const res = await fetch(`${API_BASE}/split`, { method: "POST", body: fd });
-      const data = await res.json();
-      if (!res.ok) {
-        setStatus(data.error || "Split failed");
-        return;
-      }
-      setStatus(`Split done — train ${data.train_shape}, test ${data.test_shape}`);
-    } catch (err) {
-      console.error(err);
-      setStatus("Split error");
-    }
-  };
-  */
  const callSplit = async () => {
   if (!targetCol) {
     setStatus("Please select target column first");
@@ -359,15 +252,7 @@ export default function App() {
     }
   };
 
-/*
-  // helper: fill select with columns
-  const ColumnSelect = () => (
-    <select value={targetCol} onChange={(e) => setTargetCol(e.target.value)}>
-      <option value="">-- select target column --</option>
-      {allColumns.map((c) => <option key={c} value={c}>{c}</option>)}
-    </select>
-  );
-  */
+
   
 
   return (
@@ -378,41 +263,30 @@ export default function App() {
       </header>
 
       <div className="main">
-        {/* LEFT sidebar */}
         <aside className="sidebar">
-          <h2>Pipeline</h2>
+  <button className="sidebar-btn" title="Upload">
+    <FiUpload />
+  </button>
 
-          <button className="sidebar-btn" onClick={() => fileInputRef.current && fileInputRef.current.click()}>
-            <FiUpload /> Upload
-          </button>
+  <button className="sidebar-btn" title="Preprocess">
+    <FiSettings />
+  </button>
 
-          <button className="sidebar-btn" onClick={() => setStatus("Configure preprocessing on right panel")}>
-            <FiSettings /> Preprocess
-          </button>
+  <button className="sidebar-btn" title="Split">
+    <FiDivide />
+  </button>
 
-          <button className="sidebar-btn" onClick={() => { setTestRatio(r => r); setStatus("Split controls below"); }}>
-            <FiDivide /> Split
-          </button>
+  <button className="sidebar-btn" title="Model">
+    <FiCpu />
+  </button>
 
-          <button className="sidebar-btn" onClick={() => setModelPanelOpen(true)}>
-            <FiCpu /> Model
-          </button>
+  <button className="sidebar-btn" title="Results">
+    <FiBarChart />
+  </button>
+</aside>
+        
 
-          <button className="sidebar-btn" onClick={() => { setStatus('See results on right'); }}>
-            <FiBarChart /> Results
-          </button>
-
-          <div style={{ marginTop: 18, fontSize: 13, color:"#555" }}>
-            <div><strong>Dataset Preview</strong></div>
-            <div style={{marginTop:8}}>
-              <small>Upload CSV to preview</small>
-            </div>
-          </div>
-        </aside>
-
-        {/* Hidden top-level input */}
-        <input type="file" ref={fileInputRef} style={{display:"none"}} accept=".csv,.xlsx,.xls" onChange={handleSidebarFile} />
-
+       
         {/* CENTER Canvas */}
         <section className="canvas-area">
           <ReactFlow
@@ -443,13 +317,6 @@ export default function App() {
                    setTargetCol={setTargetCol}
                    />
                    </div>
-
-
-             
-          
-          
-          
-
           {/* Preprocess controls */}
             <div style={{ marginTop: 12 }}>
             <label>
