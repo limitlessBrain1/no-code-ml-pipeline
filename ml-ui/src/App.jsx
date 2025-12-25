@@ -28,7 +28,7 @@ const UploadNode = ({data}) => {
   const fd = new FormData();
   fd.append("file", f);
 
-  const res = await fetch("http://127.0.0.1:8000/upload", {
+  const res = await fetch(`${API_BASE}/upload`, {
     method: "POST",
     body: fd,
   });
