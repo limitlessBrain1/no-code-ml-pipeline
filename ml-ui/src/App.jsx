@@ -48,7 +48,7 @@ const UploadNode = ({data}) => {
       <Handle type="target" position="top" />
       <div className="node-title"><FiUpload /> Upload Dataset</div>
       <input type="file" accept=".csv,.xlsx,.xls" onChange={handleNodeUpload} />
-      <div style={{fontSize:12, color:"#666", marginTop:8}}>Tip: you can also upload from the left sidebar</div>
+      <div style={{fontSize:12, color:"#666", marginTop:8}}></div>
       <Handle type="source" position="bottom" />
     </div>
   );
